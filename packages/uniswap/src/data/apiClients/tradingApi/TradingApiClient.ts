@@ -1,6 +1,5 @@
 import { BigNumber } from '@ethersproject/bignumber'
 import { Contract } from '@ethersproject/contracts'
-import { JsonRpcProvider } from '@ethersproject/providers'
 import { PERMIT2_ADDRESS } from '@uniswap/permit2-sdk'
 import { createTradingApiClient, TradingApi, type TradingApiClient as TradingApiClientType } from '@universe/api'
 import { TRADING_API_PATHS } from '@universe/api/src/clients/trading/createTradingApiClient'
@@ -19,6 +18,7 @@ import { createUniswapFetchClient } from 'uniswap/src/data/apiClients/createUnis
 import { onchainFetchQuote } from 'uniswap/src/data/apiClients/tradingApi/onchainFetchQuote'
 import { onchainFetchSwap } from 'uniswap/src/data/apiClients/tradingApi/onchainFetchSwap'
 import { onchainFetchSwaps } from 'uniswap/src/data/apiClients/tradingApi/onchainFetchSwaps'
+import { getMainnetProvider } from 'uniswap/src/data/apiClients/tradingApi/utils/mainnetProvider'
 import { filterChainIdsByPlatform } from 'uniswap/src/features/chains/utils'
 import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { NATIVE_ADDRESS_FOR_TRADING_API } from 'uniswap/src/features/transactions/swap/utils/tradingApi'
@@ -47,20 +47,6 @@ const ERC20_APPROVAL_ABI = [
     type: 'function',
   },
 ]
-
-let cachedApprovalProvider: JsonRpcProvider | null = null
-function getApprovalMainnetProvider(): JsonRpcProvider {
-  if (cachedApprovalProvider) {
-    return cachedApprovalProvider
-  }
-  const name = config.quicknodeEndpointName
-  const token = config.quicknodeEndpointToken
-  if (!name || !token) {
-    throw new Error('SPXSwap: QuickNode endpoint env vars missing — cannot check approval')
-  }
-  cachedApprovalProvider = new JsonRpcProvider(`https://${name}.quiknode.pro/${token}`, 1)
-  return cachedApprovalProvider
-}
 
 // The `approval` / `cancel` fields on ApprovalResponse are typed as required
 // `TransactionRequest` but the runtime flow in useTokenApprovalInfo treats
@@ -214,7 +200,7 @@ export const TradingApiClient: TradingApiClientType = {
       return noApproval
     }
     try {
-      const provider = getApprovalMainnetProvider()
+      const provider = getMainnetProvider()
       const erc20 = new Contract(params.token, ERC20_APPROVAL_ABI, provider)
       const allowanceFn = erc20['allowance']
       if (!allowanceFn) {

@@ -6,8 +6,8 @@ import { SwapRouter, UNIVERSAL_ROUTER_ADDRESS, UniversalRouterVersion } from '@u
 import type { Permit2Permit } from '@uniswap/universal-router-sdk/dist/utils/inputTokens'
 import { FeeAmount, Pool, Route as V3Route } from '@uniswap/v3-sdk'
 import { TradingApi } from '@universe/api'
-import { config } from 'uniswap/src/config'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
+import { getMainnetProvider } from 'uniswap/src/data/apiClients/tradingApi/utils/mainnetProvider'
 import { NATIVE_ADDRESS_FOR_TRADING_API } from 'uniswap/src/features/transactions/swap/utils/tradingApi'
 
 /**
@@ -25,20 +25,6 @@ import { NATIVE_ADDRESS_FOR_TRADING_API } from 'uniswap/src/features/transaction
  */
 
 const MAINNET_CHAIN_ID = 1
-
-let cachedProvider: JsonRpcProvider | null = null
-function getMainnetProvider(): JsonRpcProvider {
-  if (cachedProvider) {
-    return cachedProvider
-  }
-  const name = config.quicknodeEndpointName
-  const token = config.quicknodeEndpointToken
-  if (!name || !token) {
-    throw new Error('SPXSwap: QuickNode endpoint env vars missing — cannot build swap')
-  }
-  cachedProvider = new JsonRpcProvider(`https://${name}.quiknode.pro/${token}`, 1)
-  return cachedProvider
-}
 
 function req<T>(value: T | undefined | null, field: string): T {
   if (value === undefined || value === null) {

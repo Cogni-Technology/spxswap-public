@@ -4,7 +4,6 @@ import { Contract } from '@ethersproject/contracts'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { Token } from '@uniswap/sdk-core'
 import { TradingApi, type ClassicQuoteResponse, type DiscriminatedQuoteResponse } from '@universe/api'
-import { config } from 'uniswap/src/config'
 import { fetchEip1559Fees } from 'uniswap/src/data/apiClients/tradingApi/onchainFetchSwap'
 import { buildPermitDataIfNeeded } from 'uniswap/src/data/apiClients/tradingApi/onchainPermit2'
 import {
@@ -16,6 +15,7 @@ import {
   quoteBestPair,
   V3_FACTORY_ABI,
 } from 'uniswap/src/data/apiClients/tradingApi/onchainPoolDiscovery'
+import { getMainnetProvider } from 'uniswap/src/data/apiClients/tradingApi/utils/mainnetProvider'
 import { NATIVE_ADDRESS_FOR_TRADING_API } from 'uniswap/src/features/transactions/swap/utils/tradingApi'
 
 /**
@@ -40,21 +40,6 @@ const MAINNET_TOKEN_META: Record<string, { symbol: string; decimals: number; nam
 }
 
 const WETH_MAINNET_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-
-let cachedProvider: JsonRpcProvider | null = null
-function getMainnetProvider(): JsonRpcProvider {
-  if (cachedProvider) {
-    return cachedProvider
-  }
-  const name = config.quicknodeEndpointName
-  const token = config.quicknodeEndpointToken
-  if (!name || !token) {
-    throw new Error('SPXSwap: QuickNode endpoint env vars missing — cannot quote')
-  }
-  const url = `https://${name}.quiknode.pro/${token}`
-  cachedProvider = new JsonRpcProvider(url, 1)
-  return cachedProvider
-}
 
 function resolveMainnetToken(addressOrNative: string): Token {
   const addr = addressOrNative === NATIVE_ADDRESS_FOR_TRADING_API ? WETH_MAINNET_ADDRESS : addressOrNative

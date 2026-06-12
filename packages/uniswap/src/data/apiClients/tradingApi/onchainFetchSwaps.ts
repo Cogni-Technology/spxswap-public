@@ -1,29 +1,15 @@
-import { JsonRpcProvider } from '@ethersproject/providers'
 import { TradingApi } from '@universe/api'
-import { config } from 'uniswap/src/config'
+import { getMainnetProvider } from 'uniswap/src/data/apiClients/tradingApi/utils/mainnetProvider'
 
 /**
  * SPXSwap on-chain fetchSwaps implementation.
  *
  * Upstream /swaps hits the Trading API to check the status of submitted swap
  * txs — that's how the "Pending" spinner resolves to "Success" after the tx
- * mines. We replace it with a direct receipt lookup via QuickNode so the UI
- * stays in sync with mainnet without needing the stubbed backend.
+ * mines. We replace it with a direct receipt lookup (QuickNode primary,
+ * public RPC failover) so the UI stays in sync with mainnet without needing
+ * the stubbed backend.
  */
-
-let cachedProvider: JsonRpcProvider | null = null
-function getMainnetProvider(): JsonRpcProvider {
-  if (cachedProvider) {
-    return cachedProvider
-  }
-  const name = config.quicknodeEndpointName
-  const token = config.quicknodeEndpointToken
-  if (!name || !token) {
-    throw new Error('SPXSwap: QuickNode endpoint env vars missing — cannot poll tx status')
-  }
-  cachedProvider = new JsonRpcProvider(`https://${name}.quiknode.pro/${token}`, 1)
-  return cachedProvider
-}
 
 export async function onchainFetchSwaps(params: {
   txHashes: string[]
