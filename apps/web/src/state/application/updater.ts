@@ -1,0 +1,34 @@
+import { useEffect, useState } from 'react'
+import { useSupportedChainId } from 'uniswap/src/features/chains/hooks/useSupportedChainId'
+import { useIsWindowVisible } from 'utilities/src/react/useIsWindowVisible'
+import { useAccount } from '~/hooks/useAccount'
+import useDebounce from '~/hooks/useDebounce'
+import { useEthersProvider } from '~/hooks/useEthersProvider'
+import { updateChainId } from '~/state/application/reducer'
+import { useAppDispatch } from '~/state/hooks'
+
+export default function Updater(): null {
+  const account = useAccount()
+  const provider = useEthersProvider({ chainId: account.chainId })
+  const supportedChain = useSupportedChainId(account.chainId)
+  const dispatch = useAppDispatch()
+  const windowVisible = useIsWindowVisible()
+
+  const [activeChainId, setActiveChainId] = useState(account.chainId)
+
+  // oxlint-disable-next-line react/exhaustive-deps -- +dispatch
+  useEffect(() => {
+    if (provider && account.chainId && windowVisible) {
+      setActiveChainId(account.chainId)
+    }
+  }, [dispatch, account.chainId, provider, windowVisible])
+
+  const debouncedChainId = useDebounce(activeChainId, 100)
+
+  useEffect(() => {
+    const chainId = debouncedChainId ? supportedChain : null
+    dispatch(updateChainId({ chainId }))
+  }, [dispatch, debouncedChainId, supportedChain])
+
+  return null
+}

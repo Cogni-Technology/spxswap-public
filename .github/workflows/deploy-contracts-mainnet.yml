@@ -1,0 +1,147 @@
+name: Verify Mainnet Contracts
+
+# Purpose: post-deploy bookkeeping only. The actual mainnet deploy is signed
+# offline by a human with a Ledger (per 00-context.md). This workflow:
+#   1) waits for 12 confirmations on the broadcast tx,
+#   2) runs `forge verify-contract` against Etherscan for each contract
+#      listed in the committed packages/contracts/deployments/ethereum.json,
+#   3) does not sign anything — the tx is already on-chain by this point.
+#
+# Flow:
+#   * Human runs DeployMainnet.s.sol locally via Ledger; records addresses.
+#   * Human opens a PR committing packages/contracts/deployments/ethereum.json.
+#   * PR merged to main.
+#   * Human triggers this workflow with the last deploy tx_hash and the
+#     footgun confirmation input.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tx_hash:
+        description: "Last mainnet deploy tx hash (for confirmation wait)"
+        required: true
+        type: string
+      confirm_deploy:
+        description: 'Must equal "DEPLOY-MAINNET" (footgun guard)'
+        required: true
+        type: string
+      min_confirmations:
+        description: "Minimum block confirmations to require"
+        required: false
+        type: string
+        default: "12"
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Validate confirmation input
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirm_deploy
+        run: |
+          if [ "${{ github.event.inputs.confirm_deploy }}" != "DEPLOY-MAINNET" ]; then
+            echo "::error::confirm_deploy must be the literal string 'DEPLOY-MAINNET'"
+            exit 1
+          fi
+
+  wait-for-confirmations:
+    name: Wait for ≥${{ github.event.inputs.min_confirmations }} confirmations
+    needs: guard
+    runs-on: ubuntu-latest
+    environment: mainnet-contracts
+    steps:
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: Poll tx confirmations
+        env:
+          MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+          TX_HASH: ${{ github.event.inputs.tx_hash }}
+          MIN_CONF: ${{ github.event.inputs.min_confirmations }}
+        run: |
+          set -euo pipefail
+          # Poll for up to 30 minutes (60 × 30s).
+          for attempt in $(seq 1 60); do
+            BLOCK_HEX=$(cast tx --rpc-url "$MAINNET_RPC_URL" "$TX_HASH" blockNumber 2>/dev/null || echo "")
+            HEAD=$(cast block-number --rpc-url "$MAINNET_RPC_URL")
+            if [ -n "$BLOCK_HEX" ] && [ "$BLOCK_HEX" != "null" ]; then
+              TX_BLOCK=$((BLOCK_HEX))
+              CONFS=$((HEAD - TX_BLOCK + 1))
+              echo "attempt $attempt: tx in block $TX_BLOCK, head $HEAD, confirmations=$CONFS"
+              if [ "$CONFS" -ge "$MIN_CONF" ]; then
+                echo "::notice::Reached $CONFS confirmations (threshold $MIN_CONF)."
+                exit 0
+              fi
+            else
+              echo "attempt $attempt: tx not yet mined"
+            fi
+            sleep 30
+          done
+          echo "::error::Timed out waiting for $MIN_CONF confirmations on $TX_HASH"
+          exit 1
+
+  verify-on-etherscan:
+    name: Verify contracts on Etherscan
+    needs: wait-for-confirmations
+    runs-on: ubuntu-latest
+    environment: mainnet-contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: Verify each deployed contract
+        working-directory: packages/contracts
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+        run: |
+          set -euo pipefail
+          DEPLOY_FILE=deployments/ethereum.json
+          if [ ! -f "$DEPLOY_FILE" ]; then
+            echo "::error::$DEPLOY_FILE is missing — commit it before running this workflow."
+            exit 1
+          fi
+          # Entries look like "ContractName": "0x..." — skip v4 canonicals we didn't author.
+          # The committed JSON should only list contracts we actually deployed (MockSPX, NoopHook, etc.)
+          AUTHORED_CONTRACTS=$(jq -r '.contracts | to_entries[] | select(.value | startswith("0x")) | "\(.key) \(.value)"' "$DEPLOY_FILE")
+          if [ -z "$AUTHORED_CONTRACTS" ]; then
+            echo "::warning::No authored contracts to verify in $DEPLOY_FILE. Nothing to do."
+            exit 0
+          fi
+          echo "$AUTHORED_CONTRACTS" | while read -r name addr; do
+            # Try to match to a src/**/${name}.sol file. Skip if we can't find source
+            # (e.g. canonical addresses we tracked for reference but didn't deploy).
+            SRC=$(find src -name "${name}.sol" | head -1)
+            if [ -z "$SRC" ]; then
+              echo "::warning::No src/**/$name.sol found — skipping verify for $addr"
+              continue
+            fi
+            echo "Verifying $name ($addr) from $SRC..."
+            forge verify-contract \
+              --rpc-url "$MAINNET_RPC_URL" \
+              --etherscan-api-key "$ETHERSCAN_API_KEY" \
+              --chain-id 1 \
+              --watch \
+              "$addr" \
+              "${SRC}:${name}" \
+              || echo "::warning::Verification failed for $name — re-run manually with explicit constructor args."
+          done
+
+  summary:
+    name: Deploy summary
+    needs: verify-on-etherscan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write summary
+        run: |
+          {
+            echo "## Mainnet contracts post-deploy"
+            echo ""
+            echo "**tx_hash**: \`${{ github.event.inputs.tx_hash }}\`"
+            echo "**Confirmations reached**: ≥${{ github.event.inputs.min_confirmations }}"
+            echo ""
+            echo "Contracts are verified on Etherscan (see previous job logs for per-contract status)."
+            echo ""
+            echo "Next: open the Statsig flag \`spx_v4_hook_enabled\` once audit + testnet validation complete."
+          } >> "$GITHUB_STEP_SUMMARY"

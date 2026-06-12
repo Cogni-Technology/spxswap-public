@@ -1,0 +1,113 @@
+name: Build and Deploy to IPFS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Only one deploy at a time; cancel in-flight if a new push arrives
+concurrency:
+  group: deploy-ipfs
+  cancel-in-progress: true
+
+# softprops/action-gh-release needs `contents: write`; the w3s-failure
+# issue fallback needs `issues: write`.
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  build-and-pin:
+    runs-on: ubuntu-latest
+    environment: production-frontend
+    outputs:
+      cid: ${{ steps.pinata.outputs.cid }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.1"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ">=1.3.11"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build production bundle
+        run: bunx nx build:production web
+
+      # ── Pinata (primary, required) ─────────────────────────────────────
+      - name: Pin to Pinata
+        id: pinata
+        run: .github/scripts/pin-to-pinata.sh
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          BUILD_DIR: apps/web/build
+          PIN_NAME: "spxswap-${{ github.sha }}"
+
+      # ── web3.storage (secondary, best-effort) ──────────────────────────
+      # Pinata is primary; w3s is redundancy. If the w3s pin fails, we
+      # continue (DNSLink + release still happen) and open an ops issue.
+      - name: Pin to web3.storage (secondary)
+        id: w3s
+        continue-on-error: true
+        run: .github/scripts/pin-to-web3storage.sh
+        env:
+          WEB3_STORAGE_PRINCIPAL: ${{ secrets.WEB3_STORAGE_PRINCIPAL }}
+          WEB3_STORAGE_PROOF: ${{ secrets.WEB3_STORAGE_PROOF }}
+          BUILD_DIR: apps/web/build
+          EXPECTED_CID: ${{ steps.pinata.outputs.cid }}
+
+      - name: Open issue on w3s pin failure
+        if: steps.w3s.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "web3.storage secondary pin failed for ${GITHUB_SHA:0:7}" \
+            --body "Pinata pin succeeded; w3s pin failed. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --label "ops"
+
+      - name: Deploy summary
+        run: |
+          CID="${{ steps.pinata.outputs.cid }}"
+          W3S="${{ steps.w3s.outcome }}"
+          echo "## IPFS Deploy" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**CID**: \`$CID\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Pinata**: pinned" >> $GITHUB_STEP_SUMMARY
+          echo "**web3.storage**: $W3S" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Access the site**:" >> $GITHUB_STEP_SUMMARY
+          echo "- https://swap.dcaeon.com" >> $GITHUB_STEP_SUMMARY
+          echo "- https://$CID.ipfs.dweb.link/" >> $GITHUB_STEP_SUMMARY
+          echo "- https://dweb.link/ipfs/$CID/" >> $GITHUB_STEP_SUMMARY
+
+      # ── Cloudflare DNSLink (auto-update swap.dcaeon.com) ────────────
+      - name: Update DNSLink on Cloudflare
+        run: .github/scripts/update-cloudflare-dnslink.sh
+        env:
+          CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          DNSLINK_DOMAIN: ${{ secrets.DNSLINK_DOMAIN }}
+          CID: ${{ steps.pinata.outputs.cid }}
+
+      # ── GitHub Release ─────────────────────────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "ipfs-${{ github.run_number }}"
+          name: "IPFS Deploy #${{ github.run_number }}"
+          body: |
+            **CID**: `${{ steps.pinata.outputs.cid }}`
+            **Commit**: ${{ github.sha }}
+
+            **Access the site**:
+            - https://swap.dcaeon.com
+            - https://${{ steps.pinata.outputs.cid }}.ipfs.dweb.link/
+            - https://dweb.link/ipfs/${{ steps.pinata.outputs.cid }}/
+          token: ${{ secrets.GITHUB_TOKEN }}

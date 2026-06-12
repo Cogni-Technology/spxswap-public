@@ -1,0 +1,127 @@
+/* Add styles here only for things Tamagui doesn't support. Ideally very few
+   things go here, but stuff like keyframe CSS animations that Tamagui doesn't
+   support can be added here. Be sure to try `$platform-web` style prop first as
+   that should avoid needing to add here.  */
+html {
+  overscroll-behavior: none;
+  overflow-x: hidden;
+  background-color: #0c0c0e;
+  ::-webkit-scrollbar {
+    background-color: transparent;
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    border-radius: 8px;
+    width: 8px;
+    background-color: gray;
+  }
+  scrollbar-width: thin;
+  scrollbar-color: gray transparent;
+}
+
+html[data-theme='light'] {
+  background-color: #ffffff;
+}
+
+/*
+ * Full-viewport fixed background layer that can't be clobbered by any React-
+ * tree element. Rendered via the static <div id="background-radial-gradient">
+ * in index.html (positioned before <div id="root">) and pinned via
+ * position:fixed + z-index:0 + pointer-events:none. All React content renders
+ * on top because it's in #root, which is the next sibling in DOM order AND
+ * creates its own stacking context via the TamaguiProvider.
+ *
+ * The ThemeProvider in apps/web/src/theme/index.tsx mirrors the selected theme
+ * state onto <html data-theme="dark|light"> so the gradient + color palette
+ * flip in sync with the Tamagui tokens.
+ */
+#background-radial-gradient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(212, 160, 23, 0.035) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(90deg, rgba(212, 160, 23, 0.035) 1px, transparent 1px) 0 0 / 48px 48px,
+    radial-gradient(80% 80% at 50% 0%, rgba(212, 160, 23, 0.16) 0%, transparent 80%),
+    #0c0c0e;
+}
+
+html[data-theme='light'] #background-radial-gradient {
+  background:
+    linear-gradient(rgba(184, 137, 10, 0.06) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(90deg, rgba(184, 137, 10, 0.06) 1px, transparent 1px) 0 0 / 48px 48px,
+    radial-gradient(80% 80% at 50% 0%, rgba(184, 137, 10, 0.12) 0%, transparent 80%),
+    #ffffff;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+.text-wrap-pretty {
+  text-wrap: pretty;
+}
+
+.text-decoration-none {
+  text-decoration: none;
+}
+
+@media screen and (max-width: 864px) {
+  /* the :root:root:root is to have higher specificity than tamagui */
+  :root:root:root .connect-with-us-layout {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+@keyframes cloud-float-animation {
+  0% {
+    transform: translateY(-8px);
+  }
+  50% {
+    transform: translateY(8px);
+  }
+  100% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes token-rotate-animation {
+  0% {
+    transform: rotate(-22deg);
+  }
+  100% {
+    transform: rotate(22deg);
+  }
+}
+
+.layout-animation-ease-in-ease-out * {
+  transition: all 0.3s ease-in-out;
+}
+
+.layout-animation-linear * {
+  transition: all 0.5s linear;
+}
+
+.scrollbar-hidden {
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.last-child-flex-end {
+  &:last-child {
+    justify-content: flex-end;
+  }
+}
+.first-child-flex-grow-0 {
+  &:first-child {
+    flex-grow: 0;
+  }
+}

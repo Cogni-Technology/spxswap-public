@@ -1,0 +1,205 @@
+name: Deploy Testnet
+
+on:
+  push:
+    branches: [dev]
+  # Allow manual re-runs (e.g. after provisioning a missing secret).
+  workflow_dispatch:
+
+# One deploy at a time: later pushes cancel in-flight runs. Prevents two
+# concurrent writers from racing on deployments/sepolia.json.
+concurrency:
+  group: deploy-testnet
+  cancel-in-progress: true
+
+permissions:
+  contents: write # bot commits updated deployments/sepolia.json
+
+jobs:
+  # ── Determine what changed ────────────────────────────────────────────
+  detect-changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      contracts: ${{ steps.filter.outputs.contracts }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            contracts:
+              - 'packages/contracts/src/**'
+              - 'packages/contracts/script/**'
+              - 'packages/contracts/foundry.toml'
+              - 'packages/contracts/remappings.txt'
+              - 'packages/contracts/lib/**'
+            frontend:
+              - 'apps/web/**'
+              - 'packages/**'
+              - '!packages/contracts/**'
+              - 'bun.lock'
+              - 'tsconfig.base.json'
+
+  # ── Fork tests (contracts only, gate the deploy) ──────────────────────
+  contracts-fork-tests:
+    name: Fork tests (mainnet)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: forge test (fork)
+        working-directory: packages/contracts
+        env:
+          FOUNDRY_FUZZ_RUNS: "10000"
+          MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+        # The fork test file(s) call vm.createSelectFork($MAINNET_RPC_URL).
+        # If test/fork/ is empty, this is a no-op that passes.
+        run: |
+          if compgen -G "test/fork/*.sol" > /dev/null; then
+            forge test -vvv --match-path "test/fork/**"
+          else
+            echo "No fork tests yet (test/fork/ is empty) — skipping."
+          fi
+
+  # ── Deploy contracts to Sepolia ───────────────────────────────────────
+  deploy-contracts-sepolia:
+    name: Deploy contracts to Sepolia
+    needs: [detect-changes, contracts-fork-tests]
+    if: needs.detect-changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    environment: testnet
+    outputs:
+      sepolia_deployments: ${{ steps.read-deployments.outputs.json }}
+    steps:
+      # Check out with the bot PAT so later `git push` uses the bot identity.
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.DEPLOYMENTS_BOT_TOKEN }}
+
+      - uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Deploy + verify
+        working-directory: packages/contracts
+        env:
+          SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
+          SEPOLIA_DEPLOYER_PRIVATE_KEY: ${{ secrets.SEPOLIA_DEPLOYER_PRIVATE_KEY }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+        run: |
+          forge script script/DeployTestnet.s.sol \
+            --rpc-url "$SEPOLIA_RPC_URL" \
+            --private-key "$SEPOLIA_DEPLOYER_PRIVATE_KEY" \
+            --broadcast \
+            --verify \
+            -vvv
+
+      - name: Read generated deployments/sepolia.json
+        id: read-deployments
+        run: |
+          FILE=packages/contracts/deployments/sepolia.json
+          if [ ! -f "$FILE" ]; then
+            echo "::error::Deploy script did not produce $FILE"
+            exit 1
+          fi
+          # Flatten for actions output: single line, escape as needed.
+          {
+            echo "json<<EOF"
+            cat "$FILE"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Commit updated deployments/sepolia.json back to dev
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOYMENTS_BOT_TOKEN }}
+        run: |
+          # If the deploy script's JSON output matches what's already on dev
+          # (e.g. a no-op deploy), skip the commit entirely.
+          if git diff --quiet packages/contracts/deployments/sepolia.json; then
+            echo "No change in deployments/sepolia.json — skipping commit."
+            exit 0
+          fi
+          git config --local user.email "spxswap-bot@users.noreply.github.com"
+          git config --local user.name "spxswap-deploy-bot"
+          git add packages/contracts/deployments/sepolia.json
+          git commit -m "chore(deploy): update sepolia addresses [skip ci]"
+          git push origin HEAD:dev
+
+  # ── Deploy frontend to IPFS (testnet) ─────────────────────────────────
+  deploy-frontend-testnet:
+    name: Deploy testnet frontend (IPFS)
+    needs: [detect-changes, deploy-contracts-sepolia]
+    # Run if the contracts deploy ran OR the frontend changed. The `always()`
+    # wrapper lets us still run when deploy-contracts-sepolia was skipped due
+    # to the `if:` gate on contracts changes.
+    if: |
+      always() &&
+      (needs.deploy-contracts-sepolia.result == 'success' ||
+       (needs.deploy-contracts-sepolia.result == 'skipped' &&
+        needs.detect-changes.outputs.frontend == 'true'))
+    runs-on: ubuntu-latest
+    environment: testnet
+    steps:
+      - uses: actions/checkout@v4
+        # Pick up any commit the deploy-contracts-sepolia job pushed so the
+        # frontend build reads the freshest sepolia.json from disk.
+        with:
+          ref: dev
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.1"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ">=1.3.11"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # If deploy-contracts-sepolia ran, its output supersedes the on-disk
+      # file — there's a narrow window after the push where this workflow's
+      # local checkout may lag behind.
+      - name: Export sepolia deployments for the build
+        env:
+          FRESH_JSON: ${{ needs.deploy-contracts-sepolia.outputs.sepolia_deployments }}
+        run: |
+          if [ -n "$FRESH_JSON" ]; then
+            echo "Using fresh JSON from deploy job output."
+            echo "$FRESH_JSON" > packages/contracts/deployments/sepolia.json
+          else
+            echo "Using on-disk deployments/sepolia.json (no contracts deploy this run)."
+          fi
+          echo "VITE_SEPOLIA_DEPLOYMENTS=$(cat packages/contracts/deployments/sepolia.json | jq -c .)" >> "$GITHUB_ENV"
+
+      - name: Build testnet bundle
+        run: bunx nx build:staging web
+
+      - name: Pin to Pinata
+        id: pinata
+        run: .github/scripts/pin-to-pinata.sh
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          BUILD_DIR: apps/web/build
+          PIN_NAME: "spxswap-testnet-${{ github.sha }}"
+
+      - name: Update DNSLink for swap-testnet
+        run: .github/scripts/update-cloudflare-dnslink.sh
+        env:
+          CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          DNSLINK_DOMAIN: ${{ secrets.DNSLINK_TESTNET_DOMAIN }}
+          CID: ${{ steps.pinata.outputs.cid }}
+
+      - name: Deploy summary
+        run: |
+          CID="${{ steps.pinata.outputs.cid }}"
+          echo "## Testnet IPFS Deploy" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**CID**: \`$CID\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Domain**: https://swap-testnet.dcaeon.com" >> $GITHUB_STEP_SUMMARY
+          echo "**Gateway**: https://$CID.ipfs.dweb.link/" >> $GITHUB_STEP_SUMMARY

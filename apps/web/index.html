@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html translate="no">
+  <head>
+    <meta charset="utf-8" />
+
+    <title>SPXSwap</title>
+    <meta name="description" content="SPXSwap — censorship-resistant swap interface for SPX6900 on Ethereum mainnet." />
+
+    <link rel="icon" type="image/x-icon" href="./favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./android-chrome-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="./android-chrome-512x512.png" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#0c0c0e" />
+    <meta name="format-detection" content="telephone=no">
+
+    <!--
+      Pre-hydration theme application. Runs synchronously before the body
+      paints so the first frame already matches the user's selected theme and
+      there's no dark-to-light flash on reload. The "spx-theme" localStorage
+      key is written by ThemeProvider's useEffect whenever the theme changes.
+      Default is dark (matching initialAppearanceSettingsState).
+    -->
+    <script>
+      (function () {
+        try {
+          var t = window.localStorage.getItem('spx-theme')
+          document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'
+        } catch (e) {
+          document.documentElement.dataset.theme = 'dark'
+        }
+      })()
+    </script>
+
+    <link rel="preload" href="./fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./fonts/JetBrainsMono-Bold.woff2" as="font" type="font/woff2" crossorigin />
+
+    <style>
+      * {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        box-sizing: border-box;
+      }
+
+      @font-face {
+        font-family: 'JetBrains Mono';
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+        src: url('./fonts/JetBrainsMono-Regular.woff2') format('woff2');
+      }
+
+      @font-face {
+        font-family: 'JetBrains Mono';
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+        src: url('./fonts/JetBrainsMono-Bold.woff2') format('woff2');
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      /* Only apply overflow-x: hidden on desktop */
+      @media (min-width: 768px) {
+        html {
+          overflow-x: hidden;
+        }
+      }
+
+      button {
+        user-select: none;
+      }
+
+      html {
+        font-size: 16px;
+        font-weight: 485;
+        font-variant: none;
+        font-smooth: always;
+        text-rendering: optimizeLegibility !important;
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale;
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+      }
+
+      html,
+      body,
+      #root {
+        min-height: 100%;
+      }
+
+      html {
+        background: #0c0c0e;
+      }
+
+      html[data-theme='light'] {
+        background: #ffffff;
+      }
+
+      #background-radial-gradient {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          linear-gradient(rgba(212, 160, 23, 0.035) 1px, transparent 1px) 0 0 / 48px 48px,
+          linear-gradient(90deg, rgba(212, 160, 23, 0.035) 1px, transparent 1px) 0 0 / 48px 48px,
+          radial-gradient(80% 80% at 50% 0%, rgba(212, 160, 23, 0.16) 0%, transparent 80%),
+          #0c0c0e;
+      }
+
+      html[data-theme='light'] #background-radial-gradient {
+        background:
+          linear-gradient(rgba(184, 137, 10, 0.06) 1px, transparent 1px) 0 0 / 48px 48px,
+          linear-gradient(90deg, rgba(184, 137, 10, 0.06) 1px, transparent 1px) 0 0 / 48px 48px,
+          radial-gradient(80% 80% at 50% 0%, rgba(184, 137, 10, 0.12) 0%, transparent 80%),
+          #ffffff;
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+
+    <div id="background-radial-gradient"></div>
+    <div id="root"></div>
+
+    <!-- Vite entry point -->
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>

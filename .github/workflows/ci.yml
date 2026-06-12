@@ -1,0 +1,242 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+
+# One concurrency group per PR: the latest push cancels prior in-flight runs.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write # gas-snapshot comment
+
+env:
+  FOUNDRY_PROFILE: default
+  # Bump PR-time fuzz coverage well above Foundry's 256-run default.
+  # Fork tests (RPC-heavy) deliberately stay off PRs; they run on dev/main.
+  FOUNDRY_FUZZ_RUNS: "10000"
+
+jobs:
+  # ── TypeScript / web stack ────────────────────────────────────────────
+  ts-check:
+    name: TS check + tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.1"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ">=1.3.11"
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Check (typecheck + lint + format)
+        run: bun g:check:fast
+      - name: Test (Vitest)
+        run: bun g:test
+
+  web-build:
+    name: Web production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.1"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ">=1.3.11"
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build production bundle (sanity check, not published)
+        run: bunx nx build:production web
+
+  # ── Solidity / Foundry ────────────────────────────────────────────────
+  contracts-fmt:
+    name: Contracts — forge fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge fmt --check
+        working-directory: packages/contracts
+
+  contracts-build:
+    name: Contracts — build + size check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: Cache forge artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            packages/contracts/cache
+            packages/contracts/out
+          key: forge-${{ runner.os }}-${{ hashFiles('packages/contracts/foundry.lock', 'packages/contracts/foundry.toml', 'packages/contracts/remappings.txt', 'packages/contracts/src/**', 'packages/contracts/lib/**/.git') }}
+      - name: forge build --sizes
+        working-directory: packages/contracts
+        run: |
+          set -euo pipefail
+          forge build --sizes | tee sizes.out
+          # EIP-170: 24576 byte runtime-bytecode limit. Fail if any of our
+          # src/ contracts exceed it. Libs (lib/**) are off-limits for checks.
+          awk -F'|' '
+            /^\|/ && NR > 2 {
+              name = $2; gsub(/ /, "", name)
+              size = $3 + 0
+              if (size > 24576) { print "OVER LIMIT: " name " = " size " bytes"; bad=1 }
+            }
+            END { exit bad ? 1 : 0 }
+          ' sizes.out
+
+  contracts-test:
+    name: Contracts — forge test (unit + fuzz + invariant)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: Cache forge artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            packages/contracts/cache
+            packages/contracts/out
+          key: forge-${{ runner.os }}-${{ hashFiles('packages/contracts/foundry.lock', 'packages/contracts/foundry.toml', 'packages/contracts/remappings.txt', 'packages/contracts/src/**', 'packages/contracts/lib/**/.git') }}
+      # Explicitly exclude fork tests — they need MAINNET_RPC_URL and burn
+      # RPC budget. Fork tests run on dev/main pushes only.
+      - name: forge test
+        working-directory: packages/contracts
+        run: forge test -vvv --no-match-path "test/fork/**"
+
+  contracts-coverage:
+    name: Contracts — coverage (≥80%)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: forge coverage
+        working-directory: packages/contracts
+        # --ir-minimum sidesteps the via_ir-confuses-coverage gotcha documented
+        # in 00-context. Produces lcov.info at packages/contracts/lcov.info.
+        run: forge coverage --report lcov --ir-minimum
+      - name: Enforce ≥80% line coverage on src/ (excluding mocks)
+        run: .github/scripts/check-coverage-threshold.sh
+        env:
+          LCOV_FILE: packages/contracts/lcov.info
+          MIN_COVERAGE: "80"
+          INCLUDE_PREFIX: packages/contracts/src/
+          EXCLUDE_GLOBS: "packages/contracts/src/mocks/"
+
+  contracts-slither:
+    name: Contracts — Slither
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Slither static analysis
+        uses: crytic/slither-action@v0.3.0
+        with:
+          target: packages/contracts
+          fail-on: high
+          solc-version: "0.8.26"
+          # ci-analysis profile in foundry.toml disables via_ir so Slither gets
+          # correct source locations. Restrict analysis to our own src/.
+          slither-args: --filter-paths "lib/|test/|script/" --exclude-informational
+        env:
+          FOUNDRY_PROFILE: ci-analysis
+
+  contracts-gas-snapshot:
+    name: Contracts — gas snapshot diff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: forge snapshot
+        id: snapshot
+        working-directory: packages/contracts
+        run: |
+          set +e
+          if [ -f .gas-snapshot ]; then
+            forge snapshot --diff .gas-snapshot 2>&1 | tee /tmp/gas-diff.txt
+            echo "has_baseline=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No .gas-snapshot baseline yet — generating one" | tee /tmp/gas-diff.txt
+            forge snapshot
+            echo "has_baseline=false" >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
+      - name: Comment gas snapshot diff on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('node:fs')
+            const body = fs.readFileSync('/tmp/gas-diff.txt', 'utf8')
+            const hasBaseline = '${{ steps.snapshot.outputs.has_baseline }}' === 'true'
+            const header = hasBaseline
+              ? '### ⛽ Gas snapshot diff'
+              : '### ⛽ Gas snapshot (no baseline yet)'
+            const marker = '<!-- spxswap:gas-snapshot -->'
+            const comment = `${marker}\n${header}\n\n\`\`\`\n${body.slice(0, 60_000)}\n\`\`\``
+            const { data: existing } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })
+            const prior = existing.find(c => c.body?.includes(marker))
+            if (prior) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: prior.id,
+                body: comment,
+              })
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment,
+              })
+            }
+
+  abi-drift:
+    name: ABI drift check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.1"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ">=1.3.11"
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Regenerate ABIs
+        # abi:export depends on build in project.json, so forge build runs too.
+        run: bunx nx run @universe/contracts:abi:export --skip-nx-cache
+      - name: Fail on drift
+        run: |
+          if ! git diff --exit-code packages/contracts/generated/; then
+            echo "::error::generated/ is out of date. Run 'bunx nx run @universe/contracts:abi:export' locally and commit the result."
+            exit 1
+          fi

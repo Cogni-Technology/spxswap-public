@@ -1,0 +1,153 @@
+/*
+ * Cypherpunk chrome for the swap card. Scoped under .spx-swap-card-container so
+ * it only affects SPXSwap's forked SwapFlow and doesn't leak into global Tamagui.
+ *
+ * The outer decorations (brackets, terminal labels, dashed border, grid overlay)
+ * are fully custom. The inner swap form content uses descendant CSS overrides to
+ * coax Tamagui's compiled markup toward monospace numerals + sharper corners.
+ */
+
+.spx-swap-card-container {
+  position: relative;
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.spx-term-label {
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace !important;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #D4A017;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.spx-term-label-muted {
+  color: rgba(212, 160, 23, 0.55);
+}
+
+.spx-swap-card {
+  position: relative;
+  border: 1px dashed rgba(212, 160, 23, 0.45);
+  border-radius: 6px;
+  padding: 6px;
+  background:
+    linear-gradient(rgba(212, 160, 23, 0.025) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, rgba(212, 160, 23, 0.025) 1px, transparent 1px) 0 0 / 24px 24px,
+    rgba(12, 12, 14, 0.7);
+}
+
+html[data-theme='light'] .spx-swap-card {
+  border-color: rgba(184, 137, 10, 0.55);
+  background:
+    linear-gradient(rgba(184, 137, 10, 0.04) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, rgba(184, 137, 10, 0.04) 1px, transparent 1px) 0 0 / 24px 24px,
+    rgba(255, 255, 255, 0.85);
+}
+
+html[data-theme='light'] .spx-term-label {
+  color: #966e08;
+}
+
+html[data-theme='light'] .spx-term-label-muted {
+  color: rgba(150, 110, 8, 0.85);
+}
+
+html[data-theme='light'] .spx-corner {
+  border-color: #966e08;
+}
+
+html[data-theme='light'] .spx-swap-scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 3px,
+    rgba(184, 137, 10, 0.025) 3px,
+    rgba(184, 137, 10, 0.025) 4px
+  );
+}
+
+/*
+ * Corner brackets — four absolutely-positioned sibling elements pinned to the
+ * card's outer border. All four are relative to .spx-swap-card so they share
+ * the same coordinate frame regardless of any inner padding.
+ */
+.spx-corner {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: #D4A017;
+  border-style: solid;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.spx-corner-tl {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+
+.spx-corner-tr {
+  top: -1px;
+  right: -1px;
+  border-width: 2px 2px 0 0;
+}
+
+.spx-corner-bl {
+  bottom: -1px;
+  left: -1px;
+  border-width: 0 0 2px 2px;
+}
+
+.spx-corner-br {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 2px 2px 0;
+}
+
+/*
+ * Monospace + tabular numerals on everything numerical within the card.
+ * Text labels stay in Basel (inherited from the html-level * selector) unless
+ * they're explicitly inside an input, or we add .spx-mono to them.
+ */
+.spx-swap-card input,
+.spx-swap-card [data-testid*='amount'] span,
+.spx-swap-card [data-testid*='quote'] span {
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace !important;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/*
+ * Scanline effect — very subtle horizontal lines over the card for a terminal
+ * feel. Absolutely positioned sibling so it doesn't interfere with layout or
+ * the corner brackets. pointer-events:none lets clicks pass through to the
+ * real swap form underneath.
+ */
+.spx-swap-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 3px,
+    rgba(212, 160, 23, 0.012) 3px,
+    rgba(212, 160, 23, 0.012) 4px
+  );
+  border-radius: inherit;
+  z-index: 1;
+}
+
+/*
+ * Keep the actual swap form content above the scanlines layer.
+ */
+.spx-swap-card > .spx-swap-form-slot {
+  position: relative;
+  z-index: 2;
+}

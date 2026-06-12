@@ -1,0 +1,24 @@
+{
+  "__comment": "NX's entrypoint for establishing the project graph",
+  "extends": "./tsconfig.base.json",
+  "files": [],
+  "include": [],
+  "references": [
+    { "path": "./packages/utilities" },
+    { "path": "./packages/uniswap" },
+    { "path": "./packages/ui" },
+    { "path": "./apps/web" },
+    { "path": "./packages/api" },
+    { "path": "./packages/config" },
+    { "path": "./packages/sessions" },
+    { "path": "./config/vitest-presets" },
+    { "path": "./packages/gating" },
+    { "path": "./packages/notifications" },
+    { "path": "./packages/websocket" },
+    { "path": "./packages/prices" },
+    { "path": "./packages/privacy" },
+    { "path": "./packages/logger" },
+    { "path": "./packages/react-query" },
+    { "path": "./packages/trpc" }
+  ]
+}
