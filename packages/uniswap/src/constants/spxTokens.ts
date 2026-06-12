@@ -1,5 +1,6 @@
 import { Token } from '@uniswap/sdk-core'
 import { GraphQLApi } from '@universe/api'
+import { DAI_LOGO, ETH_LOGO, SPX6900_LOGO, USDC_LOGO, USDT_LOGO, WBTC_LOGO, WETH_LOGO } from 'ui/src/assets'
 import { DAI, USDC, USDT, WBTC, WRAPPED_NATIVE_CURRENCY, nativeOnChain } from 'uniswap/src/constants/tokens'
 import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { CurrencyInfo, SafetyInfo, TokenList } from 'uniswap/src/features/dataApi/types'
@@ -39,33 +40,18 @@ function toCurrencyInfo(currency: Token | ReturnType<typeof nativeOnChain>, logo
  * Static curated token list for SPXSwap V1. Used wherever upstream hits the
  * Uniswap gateway for token metadata — we hard-code the set and bypass the
  * network call entirely. Mainnet-only for V1; other chains return empty.
+ *
+ * Logos are bundled assets (ui/src/assets) rather than remote URLs so the
+ * IPFS build is fully self-contained — no third-party image hosts.
  */
 export const SPX_MAINNET_CURRENCY_INFOS: CurrencyInfo[] = [
-  toCurrencyInfo(
-    nativeOnChain(UniverseChainId.Mainnet),
-    'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png',
-  ),
-  toCurrencyInfo(
-    WETH_MAINNET,
-    'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
-  ),
-  toCurrencyInfo(
-    USDC,
-    'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png',
-  ),
-  toCurrencyInfo(
-    USDT,
-    'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',
-  ),
-  toCurrencyInfo(
-    DAI,
-    'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png',
-  ),
-  toCurrencyInfo(
-    WBTC,
-    'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png',
-  ),
-  toCurrencyInfo(SPX6900, 'https://assets.coingecko.com/coins/images/31401/standard/sticker_%281%29.jpg'),
+  toCurrencyInfo(nativeOnChain(UniverseChainId.Mainnet), ETH_LOGO),
+  toCurrencyInfo(WETH_MAINNET, WETH_LOGO),
+  toCurrencyInfo(USDC, USDC_LOGO),
+  toCurrencyInfo(USDT, USDT_LOGO),
+  toCurrencyInfo(DAI, DAI_LOGO),
+  toCurrencyInfo(WBTC, WBTC_LOGO),
+  toCurrencyInfo(SPX6900, SPX6900_LOGO),
 ]
 
 export function filterSPXCurrencyInfos(query: string | null | undefined): CurrencyInfo[] {

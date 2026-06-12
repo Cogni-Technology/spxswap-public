@@ -189,10 +189,25 @@ jobs:
           BUILD_DIR: apps/web/build
           PIN_NAME: "spxswap-testnet-${{ github.sha }}"
 
+      # Fail-soft on testnet: flaky public gateways shouldn't block dev pushes.
+      - name: Verify deploy on public gateways
+        continue-on-error: true
+        run: .github/scripts/verify-ipfs-deploy.sh
+        env:
+          CID: ${{ steps.pinata.outputs.cid }}
+
+      # Only touches pins named like testnet deploys (never production spxswap-*).
+      - name: Unpin previous testnet deploys
+        run: .github/scripts/cleanup-pinata-pins.sh
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          KEEP_CID: ${{ steps.pinata.outputs.cid }}
+          PIN_NAME_REGEX: '^spxswap-testnet-[0-9a-f]{40}$'
+
       - name: Deploy summary
         run: |
           CID="${{ steps.pinata.outputs.cid }}"
           echo "## Testnet IPFS Deploy" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**CID**: \`$CID\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Gateway**: https://$CID.ipfs.dweb.link/" >> $GITHUB_STEP_SUMMARY
+          echo "**Gateway**: https://ipfs.io/ipfs/$CID/" >> $GITHUB_STEP_SUMMARY

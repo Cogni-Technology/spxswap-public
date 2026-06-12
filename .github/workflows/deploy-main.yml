@@ -54,6 +54,15 @@ jobs:
           BUILD_DIR: apps/web/build
           PIN_NAME: "spxswap-${{ github.sha }}"
 
+      # ── Verify + warm public gateways ───────────────────────────────────
+      # Gates the release and the pin cleanup: if the new CID can't be served
+      # publicly, the job fails and the previous pin stays live. Also pre-warms
+      # gateway caches so the release links don't 504 on first click.
+      - name: Verify deploy on public gateways
+        run: .github/scripts/verify-ipfs-deploy.sh
+        env:
+          CID: ${{ steps.pinata.outputs.cid }}
+
       # ── web3.storage (secondary, best-effort) ──────────────────────────
       # Pinata is primary; w3s is redundancy. Skipped entirely when its
       # secrets aren't provisioned; if the pin fails, we continue (the
@@ -89,8 +98,10 @@ jobs:
           echo "**web3.storage**: $W3S" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Access the site**:" >> $GITHUB_STEP_SUMMARY
+          echo "- https://ipfs.io/ipfs/$CID/" >> $GITHUB_STEP_SUMMARY
           echo "- https://$CID.ipfs.dweb.link/" >> $GITHUB_STEP_SUMMARY
-          echo "- https://dweb.link/ipfs/$CID/" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "_Public gateways can 504 while their caches are cold — retry once or twice._" >> $GITHUB_STEP_SUMMARY
 
       # ── GitHub Release ─────────────────────────────────────────────────
       - name: Create GitHub Release
@@ -103,6 +114,18 @@ jobs:
             **Commit**: ${{ github.sha }}
 
             **Access the site**:
+            - https://ipfs.io/ipfs/${{ steps.pinata.outputs.cid }}/
             - https://${{ steps.pinata.outputs.cid }}.ipfs.dweb.link/
-            - https://dweb.link/ipfs/${{ steps.pinata.outputs.cid }}/
+
+            _Public gateways can 504 while their caches are cold — retry once or twice._
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Pinata housekeeping ─────────────────────────────────────────────
+      # Runs last so old pins survive any failure above. Only touches pins
+      # named like production deploys (never spxswap-testnet-*).
+      - name: Unpin previous production deploys
+        run: .github/scripts/cleanup-pinata-pins.sh
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          KEEP_CID: ${{ steps.pinata.outputs.cid }}
+          PIN_NAME_REGEX: '^spxswap-[0-9a-f]{40}$'

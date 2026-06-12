@@ -1,4 +1,12 @@
+import { DAI_LOGO, ETH_LOGO, USDC_LOGO, WBTC_LOGO } from 'ui/src/assets'
+
 export const SPECIAL_CASE_TOKEN_COLORS: { [key: string]: string } = {
+  // Locally bundled logos (spxTokens.ts) — computed keys so the lookup
+  // matches whatever URL the bundler assigns the asset at build time.
+  [WBTC_LOGO]: '#F09241',
+  [DAI_LOGO]: '#FAB01B',
+  [USDC_LOGO]: '#0066D9',
+  [ETH_LOGO]: '#4970D5',
   // old WBTC
   'https://raw.githubusercontent.com/Uniswap/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png':
     '#F09241',

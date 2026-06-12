@@ -7,8 +7,8 @@ Four GitHub Actions workflows power CI/CD for this monorepo.
 | Workflow | Trigger | Environment | Touches |
 |---|---|---|---|
 | [`ci.yml`](./ci.yml) | `pull_request` → `dev` or `main` | — | Read-only: typecheck, lint, Vitest, `forge test`, `forge fmt`, Slither, gas snapshot, ABI drift, `forge build --sizes` (24 KB ceiling) |
-| [`deploy-testnet.yml`](./deploy-testnet.yml) | `push` to `dev` + `workflow_dispatch` | `testnet` | Path-filtered: Sepolia contract deploys (`MockSPX`, `NoopHook`), commits updated `deployments/sepolia.json` back to `dev`, pins frontend to Pinata |
-| [`deploy-main.yml`](./deploy-main.yml) | `push` to `main` + `workflow_dispatch` | `production-frontend` | Production web bundle; pins to Pinata (primary) + web3.storage (secondary, fail-soft, skipped if unconfigured); cuts GitHub Release |
+| [`deploy-testnet.yml`](./deploy-testnet.yml) | `push` to `dev` + `workflow_dispatch` | `testnet` | Path-filtered: Sepolia contract deploys (`MockSPX`, `NoopHook`), commits updated `deployments/sepolia.json` back to `dev`, pins frontend to Pinata, verifies via public gateways (fail-soft), unpins prior testnet pins |
+| [`deploy-main.yml`](./deploy-main.yml) | `push` to `main` + `workflow_dispatch` | `production-frontend` | Production web bundle; pins to Pinata (primary) + web3.storage (secondary, fail-soft, skipped if unconfigured); verifies + warms public gateways (gates the release); cuts GitHub Release; unpins prior production pins last |
 | [`deploy-contracts-mainnet.yml`](./deploy-contracts-mainnet.yml) | `workflow_dispatch` only | `mainnet-contracts` | Post-deploy bookkeeping: waits for N confirmations on a tx hash, runs `forge verify-contract` against Etherscan. **Does not sign** — a human signs offline via Ledger first. |
 
 ## CI (`ci.yml`) jobs
@@ -33,7 +33,7 @@ Each cell shows where the secret must live. `repo` = repository secret (any work
 
 | Secret | Used by | Placement | Status |
 |---|---|---|---|
-| `PINATA_JWT` | `deploy-main`, `deploy-testnet` | repo | ❌ pending |
+| `PINATA_JWT` | `deploy-main`, `deploy-testnet` | repo | ✅ present |
 | `MAINNET_RPC_URL` | `deploy-testnet` (fork tests), `deploy-contracts-mainnet` | repo | ❌ pending |
 | `ETHERSCAN_API_KEY` | `deploy-testnet` (verify), `deploy-contracts-mainnet` | repo | ❌ pending |
 | `SEPOLIA_RPC_URL` | `deploy-testnet` | `env:testnet` | ❌ pending |

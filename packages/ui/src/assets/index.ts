@@ -23,6 +23,15 @@ export const UNICHAIN_LOGO = require('./logos/png/unichain-logo.png')
 export const UNICHAIN_SEPOLIA_LOGO = require('./logos/png/unichain-sepolia-logo.png')
 export const ETH_LOGO = require('./logos/png/eth-logo.png')
 
+// Token logos — bundled locally so the IPFS build makes no third-party
+// image requests. Used by the static SPXSwap token list (spxTokens.ts).
+export const DAI_LOGO = require('./logos/png/dai-logo.png')
+export const SPX6900_LOGO = require('./logos/png/spx6900-logo.png')
+export const USDC_LOGO = require('./logos/png/usdc-logo.png')
+export const USDT_LOGO = require('./logos/png/usdt-logo.png')
+export const WBTC_LOGO = require('./logos/png/wbtc-logo.png')
+export const WETH_LOGO = require('./logos/png/weth-logo.png')
+
 // Unitag icons — used by ui/src/components/icons/Unitag.tsx
 export const UNITAG_DARK = require('./graphics/unitag-dark.png')
 export const UNITAG_LIGHT = require('./graphics/unitag-light.png')
