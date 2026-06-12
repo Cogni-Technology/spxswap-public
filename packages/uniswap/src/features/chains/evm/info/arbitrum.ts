@@ -1,6 +1,5 @@
 import { GraphQLApi } from '@universe/api'
 import { ARBITRUM_LOGO, ETH_LOGO } from 'ui/src/assets'
-import { config } from 'uniswap/src/config'
 import { CHAIN_ID_TO_URL_PARAM } from 'uniswap/src/features/chains/chainUrlParam'
 import {
   DEFAULT_MS_BEFORE_WARNING,
@@ -76,10 +75,7 @@ export const ARBITRUM_CHAIN_INFO = {
     [RPCType.Default]: { http: ['https://arb1.arbitrum.io/rpc'] },
     [RPCType.Fallback]: { http: ['https://arbitrum.public-rpc.com'] },
     [RPCType.Interface]: {
-      http: [
-        `https://arbitrum-mainnet.infura.io/v3/${config.infuraKey}`,
-        getQuicknodeEndpointUrl(UniverseChainId.ArbitrumOne),
-      ],
+      http: [getQuicknodeEndpointUrl(UniverseChainId.ArbitrumOne)],
     },
     [RPCType.PublicAlt]: { http: ['https://arb1.arbitrum.io/rpc'] },
   },

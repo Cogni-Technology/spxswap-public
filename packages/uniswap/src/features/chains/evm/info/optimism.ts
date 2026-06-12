@@ -1,6 +1,5 @@
 import { GraphQLApi } from '@universe/api'
 import { ETH_LOGO, OPTIMISM_LOGO } from 'ui/src/assets'
-import { config } from 'uniswap/src/config'
 import { CHAIN_ID_TO_URL_PARAM } from 'uniswap/src/features/chains/chainUrlParam'
 import {
   DEFAULT_NATIVE_ADDRESS_LEGACY,
@@ -71,7 +70,7 @@ export const OPTIMISM_CHAIN_INFO = {
     [RPCType.PublicAlt]: { http: ['https://mainnet.optimism.io'] },
     [RPCType.Default]: { http: ['https://mainnet.optimism.io/'] },
     [RPCType.Fallback]: { http: ['https://rpc.ankr.com/optimism'] },
-    [RPCType.Interface]: { http: [`https://optimism-mainnet.infura.io/v3/${config.infuraKey}`] },
+    [RPCType.Interface]: { http: [getQuicknodeEndpointUrl(UniverseChainId.Optimism)] },
   },
   tokens,
   statusPage: 'https://optimism.io/status',

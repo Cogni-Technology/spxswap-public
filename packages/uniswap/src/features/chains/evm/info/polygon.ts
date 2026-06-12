@@ -1,7 +1,6 @@
 import { GraphQLApi } from '@universe/api'
 import { SwapConfigKey } from '@universe/gating'
 import { POLYGON_LOGO } from 'ui/src/assets'
-import { config } from 'uniswap/src/config'
 import { CHAIN_ID_TO_URL_PARAM } from 'uniswap/src/features/chains/chainUrlParam'
 import { getQuicknodeEndpointUrl } from 'uniswap/src/features/chains/evm/rpc'
 import { buildChainTokens } from 'uniswap/src/features/chains/evm/tokens'
@@ -66,7 +65,7 @@ export const POLYGON_CHAIN_INFO = {
     [RPCType.PublicAlt]: { http: ['https://polygon-rpc.com/'] },
     [RPCType.Default]: { http: [getQuicknodeEndpointUrl(UniverseChainId.Polygon)] },
     [RPCType.Fallback]: { http: ['https://polygon-rpc.com/'] },
-    [RPCType.Interface]: { http: [`https://polygon-mainnet.infura.io/v3/${config.infuraKey}`] },
+    [RPCType.Interface]: { http: [getQuicknodeEndpointUrl(UniverseChainId.Polygon)] },
   },
   tokens,
   statusPage: undefined,

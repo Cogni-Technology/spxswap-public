@@ -2,7 +2,6 @@
 // Must be kept separately from env.d.ts as due to issue with global
 // namespace vs module declarations
 declare module 'react-native-dotenv' {
-  export const ALCHEMY_API_KEY: string
   export const AMPLITUDE_PROXY_URL_OVERRIDE: string
   export const API_BASE_URL_OVERRIDE: string
   export const API_BASE_URL_V2_OVERRIDE: string
@@ -18,7 +17,6 @@ declare module 'react-native-dotenv' {
   export const FOR_API_URL_OVERRIDE: string
   export const GRAPHQL_URL_OVERRIDE: string
   export const INCLUDE_PROTOTYPE_FEATURES: string
-  export const INFURA_KEY: string
   export const IS_E2E_TEST: string
   export const JUPITER_PROXY_URL: string
   export const LIQUIDITY_SERVICE_URL_OVERRIDE: string

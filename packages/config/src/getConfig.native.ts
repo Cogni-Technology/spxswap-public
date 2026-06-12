@@ -1,6 +1,5 @@
 import type { Config } from '@universe/config/src/config-types'
 import {
-  ALCHEMY_API_KEY,
   AMPLITUDE_PROXY_URL_OVERRIDE,
   API_BASE_URL_OVERRIDE,
   API_BASE_URL_V2_OVERRIDE,
@@ -16,7 +15,6 @@ import {
   FOR_API_URL_OVERRIDE,
   GRAPHQL_URL_OVERRIDE,
   INCLUDE_PROTOTYPE_FEATURES,
-  INFURA_KEY,
   IS_E2E_TEST,
   JUPITER_PROXY_URL,
   LIQUIDITY_SERVICE_URL_OVERRIDE,
@@ -58,7 +56,6 @@ export const getConfig = (): Config => {
    */
 
   const config: Config = {
-    alchemyApiKey: process.env.REACT_APP_ALCHEMY_API_KEY || process.env.ALCHEMY_API_KEY || ALCHEMY_API_KEY,
     amplitudeProxyUrlOverride: process.env.AMPLITUDE_PROXY_URL_OVERRIDE || AMPLITUDE_PROXY_URL_OVERRIDE,
     apiBaseUrlOverride: process.env.API_BASE_URL_OVERRIDE || API_BASE_URL_OVERRIDE,
     apiBaseUrlV2Override: process.env.API_BASE_URL_V2_OVERRIDE || API_BASE_URL_V2_OVERRIDE,
@@ -76,7 +73,6 @@ export const getConfig = (): Config => {
     isE2ETest: process.env.IS_E2E_TEST?.toLowerCase() === 'true' || IS_E2E_TEST?.toLowerCase() === 'true',
     forApiUrlOverride: process.env.FOR_API_URL_OVERRIDE || FOR_API_URL_OVERRIDE,
     graphqlUrlOverride: process.env.GRAPHQL_URL_OVERRIDE || GRAPHQL_URL_OVERRIDE,
-    infuraKey: process.env.REACT_APP_INFURA_KEY || INFURA_KEY,
     includePrototypeFeatures: process.env.INCLUDE_PROTOTYPE_FEATURES || INCLUDE_PROTOTYPE_FEATURES,
     isVercelEnvironment: false, // never set to true for native
     jupiterProxyUrl: process.env.JUPITER_PROXY_URL || JUPITER_PROXY_URL,

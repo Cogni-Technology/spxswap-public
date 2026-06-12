@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Pin a directory to web3.storage (w3up) as a secondary redundancy layer.
 # Pinata is primary; this fires in parallel and failures are non-fatal at the
-# workflow level (continue-on-error). DNSLink points at the Pinata CID; the
-# w3s pin exists to let us re-point DNSLink if Pinata ever nukes the content.
+# workflow level (continue-on-error). The site is addressed by CID via IPFS
+# gateways; the w3s pin keeps the content retrievable if Pinata ever nukes it.
 #
 # Required env vars:
 #   WEB3_STORAGE_PRINCIPAL   - Agent private key (from `w3 key create --json | jq -r .key`)
@@ -54,7 +54,7 @@ fi
 echo "w3.storage CID: $CID"
 
 if [ "$CID" != "$EXPECTED_CID" ]; then
-  echo "::warning::CID mismatch — Pinata=$EXPECTED_CID, w3s=$CID. DNSLink points at Pinata, so this only matters if we ever need to re-point to w3s."
+  echo "::warning::CID mismatch — Pinata=$EXPECTED_CID, w3s=$CID. Published links use the Pinata CID, so this only matters if we ever need to fall back to w3s."
 fi
 
 if [ -n "${GITHUB_OUTPUT:-}" ]; then

@@ -5,7 +5,6 @@ declare global {
     // All process.env values used by this package should be listed here
     interface ProcessEnv {
       NODE_ENV?: 'development' | 'production' | 'test'
-      ALCHEMY_API_KEY?: string
       AMPLITUDE_PROXY_URL_OVERRIDE?: string
       API_BASE_URL_OVERRIDE?: string
       API_BASE_URL_V2_OVERRIDE?: string
@@ -28,12 +27,10 @@ declare global {
       ONESIGNAL_APP_ID?: string
       QUICKNODE_ENDPOINT_NAME?: string
       QUICKNODE_ENDPOINT_TOKEN?: string
-      REACT_APP_ALCHEMY_API_KEY?: string
       REACT_APP_BLOCKAID_PROXY_URL?: string
       REACT_APP_DATADOG_CLIENT_TOKEN?: string
       REACT_APP_DATADOG_PROJECT_ID?: string
       REACT_APP_ENABLE_SESSION_UPGRADE_AUTO?: string
-      REACT_APP_INFURA_KEY?: string
       REACT_APP_JUPITER_PROXY_URL?: string
       REACT_APP_LIQUIDITY_SERVICE_URL_OVERRIDE?: string
       REACT_APP_QUICKNODE_ENDPOINT_NAME?: string

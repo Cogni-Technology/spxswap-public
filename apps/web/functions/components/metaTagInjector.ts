@@ -200,8 +200,7 @@ export async function metaTagInjectionMiddleware(c: Context, next: Next): Promis
         title: 'SPXSwap',
         image: imageUri,
         url: c.req.url,
-        description:
-          'Swap crypto on Ethereum, Base, Arbitrum, Polygon and more.',
+        description: 'Swap crypto on Ethereum, Base, Arbitrum, Polygon and more.',
       }
     }
 

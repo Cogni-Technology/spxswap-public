@@ -17,7 +17,6 @@ export const getConfig = (): Config => {
    * in browser extension builds.
    */
   const config: Config = {
-    alchemyApiKey: process.env.REACT_APP_ALCHEMY_API_KEY || process.env.ALCHEMY_API_KEY || '',
     amplitudeProxyUrlOverride: process.env.AMPLITUDE_PROXY_URL_OVERRIDE || '',
     apiBaseUrlOverride: process.env.API_BASE_URL_OVERRIDE || '',
     apiBaseUrlV2Override: process.env.API_BASE_URL_V2_OVERRIDE || '',
@@ -34,7 +33,6 @@ export const getConfig = (): Config => {
     isE2ETest: process.env.IS_E2E_TEST?.toLowerCase() === 'true',
     forApiUrlOverride: process.env.FOR_API_URL_OVERRIDE || '',
     graphqlUrlOverride: process.env.GRAPHQL_URL_OVERRIDE || '',
-    infuraKey: process.env.REACT_APP_INFURA_KEY || '',
     includePrototypeFeatures: process.env.INCLUDE_PROTOTYPE_FEATURES || '',
     isVercelEnvironment: process.env.VERCEL === '1',
     jupiterProxyUrl: process.env.REACT_APP_JUPITER_PROXY_URL || process.env.JUPITER_PROXY_URL || '',

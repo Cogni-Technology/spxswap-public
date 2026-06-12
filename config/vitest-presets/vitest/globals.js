@@ -2,7 +2,6 @@ process.env.TZ = 'America/New_York'
 
 module.exports = {
   globals: {
-    ALCHEMY_API_KEY: 'key',
     AMPLITUDE_EXPERIMENTS_DEPLOYMENT_KEY: 'key',
     AMPLITUDE_PROXY_URL_OVERRIDE: '',
     API_BASE_URL_OVERRIDE: '',
@@ -14,7 +13,6 @@ module.exports = {
     FIREBASE_APP_CHECK_DEBUG_TOKEN: 'token',
     FOR_API_URL_OVERRIDE: '',
     GRAPHQL_URL_OVERRIDE: '',
-    INFURA_KEY: 'key',
     ONESIGNAL_APP_ID: 123,
     QUICKNODE_ENDPOINT_NAME: 'name',
     QUICKNODE_ENDPOINT_TOKEN: 'token',

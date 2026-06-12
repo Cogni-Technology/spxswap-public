@@ -9,7 +9,6 @@
  */
 
 export interface Config {
-  alchemyApiKey: string
   amplitudeProxyUrlOverride: string
   apiBaseUrlOverride: string
   apiBaseUrlV2Override: string
@@ -22,7 +21,6 @@ export interface Config {
   forApiUrlOverride: string
   graphqlUrlOverride: string
   includePrototypeFeatures: string
-  infuraKey: string
   isVercelEnvironment: boolean
   jupiterProxyUrl: string
   onesignalAppId: string

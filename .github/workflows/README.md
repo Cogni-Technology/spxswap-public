@@ -7,8 +7,8 @@ Four GitHub Actions workflows power CI/CD for this monorepo.
 | Workflow | Trigger | Environment | Touches |
 |---|---|---|---|
 | [`ci.yml`](./ci.yml) | `pull_request` → `dev` or `main` | — | Read-only: typecheck, lint, Vitest, `forge test`, `forge fmt`, Slither, gas snapshot, ABI drift, `forge build --sizes` (24 KB ceiling) |
-| [`deploy-testnet.yml`](./deploy-testnet.yml) | `push` to `dev` + `workflow_dispatch` | `testnet` | Path-filtered: Sepolia contract deploys (`MockSPX`, `NoopHook`), commits updated `deployments/sepolia.json` back to `dev`, pins frontend to Pinata, updates Cloudflare DNSLink for `swap-testnet.dcaeon.com` |
-| [`deploy-main.yml`](./deploy-main.yml) | `push` to `main` + `workflow_dispatch` | `production-frontend` | Production web bundle; pins to Pinata (primary) + web3.storage (secondary, fail-soft); updates Cloudflare DNSLink for `swap.dcaeon.com`; cuts GitHub Release |
+| [`deploy-testnet.yml`](./deploy-testnet.yml) | `push` to `dev` + `workflow_dispatch` | `testnet` | Path-filtered: Sepolia contract deploys (`MockSPX`, `NoopHook`), commits updated `deployments/sepolia.json` back to `dev`, pins frontend to Pinata |
+| [`deploy-main.yml`](./deploy-main.yml) | `push` to `main` + `workflow_dispatch` | `production-frontend` | Production web bundle; pins to Pinata (primary) + web3.storage (secondary, fail-soft, skipped if unconfigured); cuts GitHub Release |
 | [`deploy-contracts-mainnet.yml`](./deploy-contracts-mainnet.yml) | `workflow_dispatch` only | `mainnet-contracts` | Post-deploy bookkeeping: waits for N confirmations on a tx hash, runs `forge verify-contract` against Etherscan. **Does not sign** — a human signs offline via Ledger first. |
 
 ## CI (`ci.yml`) jobs
@@ -33,40 +33,38 @@ Each cell shows where the secret must live. `repo` = repository secret (any work
 
 | Secret | Used by | Placement | Status |
 |---|---|---|---|
-| `PINATA_JWT` | `deploy-main`, `deploy-testnet` | repo | ✅ present |
-| `CLOUDFLARE_TOKEN` | `deploy-main`, `deploy-testnet` | repo | ✅ present |
-| `CLOUDFLARE_ZONE_ID` | `deploy-main`, `deploy-testnet` | repo | ✅ present |
-| `DNSLINK_DOMAIN` | `deploy-main` | repo | ✅ present |
-| `DNSLINK_TESTNET_DOMAIN` | `deploy-testnet` | repo | ❌ pending |
+| `PINATA_JWT` | `deploy-main`, `deploy-testnet` | repo | ❌ pending |
 | `MAINNET_RPC_URL` | `deploy-testnet` (fork tests), `deploy-contracts-mainnet` | repo | ❌ pending |
 | `ETHERSCAN_API_KEY` | `deploy-testnet` (verify), `deploy-contracts-mainnet` | repo | ❌ pending |
 | `SEPOLIA_RPC_URL` | `deploy-testnet` | `env:testnet` | ❌ pending |
 | `SEPOLIA_DEPLOYER_PRIVATE_KEY` | `deploy-testnet` | `env:testnet` | ❌ pending |
 | `DEPLOYMENTS_BOT_TOKEN` | `deploy-testnet` (bot commit of `sepolia.json`) | repo | ❌ pending |
-| `WEB3_STORAGE_PRINCIPAL` | `deploy-main` (w3s secondary pin) | repo | ❌ pending |
-| `WEB3_STORAGE_PROOF` | `deploy-main` (w3s secondary pin) | repo | ❌ pending |
+| `WEB3_STORAGE_PRINCIPAL` | `deploy-main` (w3s secondary pin) | repo | ⏭️ optional — step skipped when absent |
+| `WEB3_STORAGE_PROOF` | `deploy-main` (w3s secondary pin) | repo | ⏭️ optional — step skipped when absent |
 | `GITHUB_TOKEN` | `deploy-main` (GH Release, issue fallback), `ci.yml` (gas comment) | auto | ✅ built-in |
 
 Until each `❌ pending` row is populated, the workflow that consumes it will fail on first run. `ci.yml` depends on none of them — it runs cleanly from day one.
 
+Cloudflare DNSLink updates were removed from the pipeline along with the rest of the Cloudflare integration — deploys are addressed by CID via IPFS gateways only.
+
 ## Bot identity for `sepolia.json` writes
 
 `deploy-testnet.yml` writes to `dev` using a fine-grained PAT stored as `DEPLOYMENTS_BOT_TOKEN`. The PAT needs:
-- Repository access: `CogniSF-Labs/spxswap` only
+- Repository access: `Cogni-Technology/spxswap-public` only
 - Permissions: `Contents: Read and write`
 - Expiration: 90 days (rotate on calendar)
 
 Commit messages include `[skip ci]` so the bot's push doesn't re-trigger `deploy-testnet.yml`. Branch protection (when eventually enabled on `dev`) must exempt the bot identity via the ruleset's bypass list.
 
-## Deferred (blocked by GitHub Free + private repo)
+## Repo policies to configure (now available — repo is public)
 
-The following policies are part of the plan but cannot be configured under the current plan tier — they require Team or public:
+These were deferred while the repo was private on GitHub Free; now that it's public they can be enabled in repo settings:
 
 - Branch protection rules (required checks, required approvals, linear history) on `main` and `dev`
 - Environment protection rules (required reviewers, wait timers) on `mainnet-contracts`, `production-frontend`, and `testnet`
 - Environment-branch restrictions (so the testnet deployer secret only unlocks from `dev`-based workflows)
 
-The workflow files already reference `environment:` values so that when a plan upgrade happens (or the repo is flipped public) the existing jobs immediately honor the policies — no YAML changes needed.
+The workflow files already reference `environment:` values, so the existing jobs honor these policies as soon as they're configured — no YAML changes needed.
 
 ## Manual operations
 
