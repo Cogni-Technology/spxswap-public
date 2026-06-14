@@ -21,17 +21,29 @@ GATEWAYS=${GATEWAYS:-"https://ipfs.io https://dweb.link"}
 MAX_ATTEMPTS=${MAX_ATTEMPTS:-10}
 SLEEP_SECONDS=${SLEEP_SECONDS:-15}
 
-# Fetch a URL with retries. Echoes the body file path on success.
+# Fetch a URL with retries, treating an HTTP 200 as success.
+#
+# A cold gateway returns the 200 headers as soon as it has resolved the content,
+# but streaming the full body of a large bundle can exceed --max-time, making
+# curl exit non-zero *after* it has already printed "200". We therefore capture
+# the HTTP status independently of curl's exit code and key success off that.
+#
+# The previous `... || echo "000"` ran inside the command substitution, so on a
+# body timeout it appended "000" to the "200" curl had already emitted, yielding
+# the bogus status "200000" — which never matched "200", so a successful (and
+# now partially cache-warmed) fetch was retried and could fail the whole deploy.
 fetch_with_retries() {
   local url=$1
   local out=$2
-  local attempt
+  local attempt status
   for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
-    STATUS=$(curl -s --max-time 120 -o "$out" -w "%{http_code}" "$url" || echo "000")
-    if [ "$STATUS" = "200" ]; then
+    # `|| true` keeps a non-zero curl exit (e.g. 28 timeout mid-body) from
+    # tripping `set -e`; $status still holds the real code curl printed.
+    status=$(curl -s --max-time 120 -o "$out" -w "%{http_code}" "$url") || true
+    if [ "$status" = "200" ]; then
       return 0
     fi
-    echo "  attempt ${attempt}/${MAX_ATTEMPTS}: ${url} → ${STATUS}, retrying in ${SLEEP_SECONDS}s..."
+    echo "  attempt ${attempt}/${MAX_ATTEMPTS}: ${url} → ${status:-000}, retrying in ${SLEEP_SECONDS}s..."
     sleep "$SLEEP_SECONDS"
   done
   return 1
