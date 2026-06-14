@@ -71,19 +71,26 @@ export function getQuicknodeChainIdPathSuffix(chainId: UniverseChainId): string 
 }
 
 export function getQuicknodeEndpointUrl(chainId: UniverseChainId): string {
-  // SPXSwap: QuickNode is optional. When the endpoint env vars aren't set,
-  // return an empty string instead of a malformed `https://.quiknode.pro/`
-  // URL (which would otherwise be injected as the primary RPC and fail every
-  // request). Empty entries are filtered out by the wagmi transport builder
-  // (orderedTransportUrls) and treated as "no URL" by selectRpcUrl, so chains
-  // fall back to their public RPC URLs instead of a dead first hop.
-  if (!config.quicknodeEndpointName || !config.quicknodeEndpointToken) {
-    return ''
-  }
-
   const quicknodeChainId = getQuicknodeChainId(chainId)
 
   return `https://${config.quicknodeEndpointName}${quicknodeChainId ? `.${quicknodeChainId}` : ''}.quiknode.pro/${config.quicknodeEndpointToken}${getQuicknodeChainIdPathSuffix(chainId)}`
+}
+
+/**
+ * SPXSwap: QuickNode is optional. The endpoint env vars may be absent (we
+ * deliberately run on public RPCs). When they are, `getQuicknodeEndpointUrl`
+ * would build a malformed `https://.quiknode.pro/` URL — harmless at provider
+ * construction (valid scheme) but a dead first hop at request time. Callers
+ * that have a public-RPC alternative (e.g. mainnet) should check this and skip
+ * QuickNode entirely rather than emit the malformed URL.
+ *
+ * Note: returning the malformed URL for chains *without* a public alternative
+ * is intentional — an empty string would throw "Endpoint URL must start with
+ * http:/https:" inside the eager RPC_PROVIDERS construction in
+ * apps/web/src/constants/providers.ts and crash app load.
+ */
+export function isQuicknodeConfigured(): boolean {
+  return Boolean(config.quicknodeEndpointName) && Boolean(config.quicknodeEndpointToken)
 }
 
 export function getPlaywrightRpcUrls(url: string): { [key in RPCType]: { http: string[] } } {

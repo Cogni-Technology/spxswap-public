@@ -98,6 +98,8 @@ jobs:
           echo "**web3.storage**: $W3S" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Access the site**:" >> $GITHUB_STEP_SUMMARY
+          echo "- https://spxswap.eth.limo" >> $GITHUB_STEP_SUMMARY
+          echo "- https://swap.dcaeon.com" >> $GITHUB_STEP_SUMMARY
           echo "- https://ipfs.io/ipfs/$CID/" >> $GITHUB_STEP_SUMMARY
           echo "- https://$CID.ipfs.dweb.link/" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -114,6 +116,8 @@ jobs:
             **Commit**: ${{ github.sha }}
 
             **Access the site**:
+            - https://spxswap.eth.limo
+            - https://swap.dcaeon.com
             - https://ipfs.io/ipfs/${{ steps.pinata.outputs.cid }}/
             - https://${{ steps.pinata.outputs.cid }}.ipfs.dweb.link/
 

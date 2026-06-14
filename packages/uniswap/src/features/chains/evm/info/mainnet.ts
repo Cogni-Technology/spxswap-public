@@ -9,6 +9,7 @@ import {
   DEFAULT_NATIVE_ADDRESS_LEGACY,
   getPlaywrightRpcUrls,
   getQuicknodeEndpointUrl,
+  isQuicknodeConfigured,
 } from 'uniswap/src/features/chains/evm/rpc'
 import { buildChainTokens } from 'uniswap/src/features/chains/evm/tokens'
 import {
@@ -37,11 +38,13 @@ const tokens = buildChainTokens({
 const LOCAL_MAINNET_PLAYWRIGHT_RPC_URL = 'http://127.0.0.1:8545'
 
 // SPXSwap: QuickNode (if configured) stays the primary read RPC; otherwise the
-// app reads directly from the public mainnet RPCs. `getQuicknodeEndpointUrl`
-// returns '' when QuickNode env vars are absent, so `.filter(Boolean)` drops it
-// and the public URLs take over as primary with no dead first hop.
-const MAINNET_QUICKNODE_RPC_URL = getQuicknodeEndpointUrl(UniverseChainId.Mainnet)
-const MAINNET_PRIMARY_RPC_URLS = [MAINNET_QUICKNODE_RPC_URL, ...PUBLIC_MAINNET_RPC_URLS].filter(Boolean)
+// app reads directly from the public mainnet RPCs. We gate on
+// isQuicknodeConfigured() rather than emitting getQuicknodeEndpointUrl()
+// unconditionally, so when QuickNode is absent we never inject the malformed
+// `https://.quiknode.pro/` URL as a dead first hop.
+const MAINNET_PRIMARY_RPC_URLS = isQuicknodeConfigured()
+  ? [getQuicknodeEndpointUrl(UniverseChainId.Mainnet), ...PUBLIC_MAINNET_RPC_URLS]
+  : [...PUBLIC_MAINNET_RPC_URLS]
 
 export const MAINNET_CHAIN_INFO = {
   ...mainnet,
