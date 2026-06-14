@@ -71,6 +71,16 @@ export function getQuicknodeChainIdPathSuffix(chainId: UniverseChainId): string 
 }
 
 export function getQuicknodeEndpointUrl(chainId: UniverseChainId): string {
+  // SPXSwap: QuickNode is optional. When the endpoint env vars aren't set,
+  // return an empty string instead of a malformed `https://.quiknode.pro/`
+  // URL (which would otherwise be injected as the primary RPC and fail every
+  // request). Empty entries are filtered out by the wagmi transport builder
+  // (orderedTransportUrls) and treated as "no URL" by selectRpcUrl, so chains
+  // fall back to their public RPC URLs instead of a dead first hop.
+  if (!config.quicknodeEndpointName || !config.quicknodeEndpointToken) {
+    return ''
+  }
+
   const quicknodeChainId = getQuicknodeChainId(chainId)
 
   return `https://${config.quicknodeEndpointName}${quicknodeChainId ? `.${quicknodeChainId}` : ''}.quiknode.pro/${config.quicknodeEndpointToken}${getQuicknodeChainIdPathSuffix(chainId)}`

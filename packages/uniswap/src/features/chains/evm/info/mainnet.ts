@@ -3,6 +3,7 @@ import { GraphQLApi } from '@universe/api'
 import { SwapConfigKey } from '@universe/gating'
 import { ETH_LOGO, ETHEREUM_LOGO } from 'ui/src/assets'
 import { CHAIN_ID_TO_URL_PARAM } from 'uniswap/src/features/chains/chainUrlParam'
+import { PUBLIC_MAINNET_RPC_URLS } from 'uniswap/src/features/chains/evm/publicRpcUrls'
 import {
   DEFAULT_MS_BEFORE_WARNING,
   DEFAULT_NATIVE_ADDRESS_LEGACY,
@@ -34,6 +35,13 @@ const tokens = buildChainTokens({
 })
 
 const LOCAL_MAINNET_PLAYWRIGHT_RPC_URL = 'http://127.0.0.1:8545'
+
+// SPXSwap: QuickNode (if configured) stays the primary read RPC; otherwise the
+// app reads directly from the public mainnet RPCs. `getQuicknodeEndpointUrl`
+// returns '' when QuickNode env vars are absent, so `.filter(Boolean)` drops it
+// and the public URLs take over as primary with no dead first hop.
+const MAINNET_QUICKNODE_RPC_URL = getQuicknodeEndpointUrl(UniverseChainId.Mainnet)
+const MAINNET_PRIMARY_RPC_URLS = [MAINNET_QUICKNODE_RPC_URL, ...PUBLIC_MAINNET_RPC_URLS].filter(Boolean)
 
 export const MAINNET_CHAIN_INFO = {
   ...mainnet,
@@ -77,16 +85,16 @@ export const MAINNET_CHAIN_INFO = {
           http: ['https://rpc.mevblocker.io/?referrer=uniswapwallet'],
         },
         [RPCType.Public]: {
-          http: [getQuicknodeEndpointUrl(UniverseChainId.Mainnet)],
+          http: MAINNET_PRIMARY_RPC_URLS,
         },
         [RPCType.Default]: {
-          http: [getQuicknodeEndpointUrl(UniverseChainId.Mainnet)],
+          http: MAINNET_PRIMARY_RPC_URLS,
         },
         [RPCType.Fallback]: {
-          http: ['https://rpc.ankr.com/eth', 'https://eth-mainnet.public.blastapi.io'],
+          http: [...PUBLIC_MAINNET_RPC_URLS],
         },
         [RPCType.Interface]: {
-          http: [getQuicknodeEndpointUrl(UniverseChainId.Mainnet)],
+          http: MAINNET_PRIMARY_RPC_URLS,
         },
       },
   urlParam: CHAIN_ID_TO_URL_PARAM[UniverseChainId.Mainnet],

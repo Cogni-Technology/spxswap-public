@@ -1,16 +1,18 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { config } from 'uniswap/src/config'
+import { PUBLIC_MAINNET_RPC_URLS } from 'uniswap/src/features/chains/evm/publicRpcUrls'
 import { logger } from 'utilities/src/logger/logger'
 
 const MAINNET_CHAIN_ID = 1
 
 /**
  * Public mainnet RPCs used when the primary (QuickNode) endpoint is missing
- * or failing. Keep in sync with the Fallback tier in
- * features/chains/evm/info/mainnet.ts — not imported from there to avoid a
- * circular dependency between the chains feature and the data layer.
+ * or failing. Shared with the Fallback tier in
+ * features/chains/evm/info/mainnet.ts via the import below — publicRpcUrls.ts
+ * is a zero-import leaf module, so sharing it does not create a circular
+ * dependency between the chains feature and the data layer.
  */
-const PUBLIC_FALLBACK_RPC_URLS = ['https://rpc.ankr.com/eth', 'https://eth-mainnet.public.blastapi.io']
+const PUBLIC_FALLBACK_RPC_URLS = PUBLIC_MAINNET_RPC_URLS
 
 // ethers transport-level failure codes (fetch failures, 5xx, timeouts).
 // JSON-RPC application errors (e.g. eth_call reverts) are real answers from a
@@ -81,7 +83,9 @@ export function getMainnetProvider(): JsonRpcProvider {
   const name = config.quicknodeEndpointName
   const token = config.quicknodeEndpointToken
   const urls =
-    name && token ? [`https://${name}.quiknode.pro/${token}`, ...PUBLIC_FALLBACK_RPC_URLS] : PUBLIC_FALLBACK_RPC_URLS
+    name && token
+      ? [`https://${name}.quiknode.pro/${token}`, ...PUBLIC_FALLBACK_RPC_URLS]
+      : [...PUBLIC_FALLBACK_RPC_URLS]
   if (!name || !token) {
     logger.warn(
       'mainnetProvider',
